@@ -1,0 +1,7 @@
+{
+  "name": "MERRY CHRISTMAS • Pink Gold Energy",
+  "description": "A high-fidelity 3D Christmas tree experience rendered with volumetric pink-gold particles, featuring cinematic bloom and magical atmosphere.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
