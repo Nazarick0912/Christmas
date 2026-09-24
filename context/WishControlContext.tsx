@@ -25,6 +25,7 @@ export interface LandedWishData {
 
 export interface TreeData {
   burst: number; // 0.0 to 1.0
+  starShine: number; // 0.0 to 1.0
 }
 
 interface WishControlState {
@@ -43,7 +44,7 @@ export const WishControlContext = createContext<WishControlState | null>(null);
 export const WishControlProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const wishesRef = useRef<WishData[]>([]);
   const [activeWishes, setActiveWishes] = useState<WishData[]>([]);
-  const treeDataRef = useRef<TreeData>({ burst: 0 });
+  const treeDataRef = useRef<TreeData>({ burst: 0, starShine: 0 });
   const treeRotationRef = useRef<number>(0);
   const [permanentWishes, setPermanentWishes] = useState<LandedWishData[]>([]);
 

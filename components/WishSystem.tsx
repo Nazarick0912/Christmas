@@ -230,7 +230,8 @@ const WishSystem: React.FC = () => {
         
         if (!wish.landed) {
           wish.landed = true;
-          treeDataRef.current.burst = 2.0; 
+          // Trigger the golden star shine without bursting tree body particles
+          treeDataRef.current.starShine = 1.0;
         }
 
         // --- PERSISTENCE LOGIC ---

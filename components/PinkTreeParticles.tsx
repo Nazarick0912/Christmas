@@ -80,8 +80,8 @@ const fragmentShader = `
 const PinkTreeParticles: React.FC = () => {
   const meshRef = useRef<THREE.Points>(null);
   const shaderMaterialRef = useRef<THREE.ShaderMaterial>(null);
+  const unleashProgressRef = useRef(0);
   const { isUnleashed } = useHandControl();
-  const { treeDataRef } = useWishControl();
 
   const { count, radius, height } = useMemo(() => ({
     count: CONFIG.counts.treeParticles,
@@ -127,16 +127,13 @@ const PinkTreeParticles: React.FC = () => {
   useFrame((state) => {
     if (!shaderMaterialRef.current) return;
     
-    // Decay Burst - 1 second duration approx (0.02 decay @ 60fps ~ 50 frames)
-    treeDataRef.current.burst = THREE.MathUtils.lerp(treeDataRef.current.burst, 0, 0.04);
-
-    let totalEffect = treeDataRef.current.burst;
-    if (isUnleashed) {
-        totalEffect = Math.max(totalEffect, 0.5); 
-    }
+    // Only expand tree particles when energy is deliberately unleashed (Spacebar/Hand)
+    const targetUnleash = isUnleashed ? 0.6 : 0.0;
+    const factor = isUnleashed ? 0.08 : 0.04;
+    unleashProgressRef.current = THREE.MathUtils.lerp(unleashProgressRef.current, targetUnleash, factor);
 
     shaderMaterialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
-    shaderMaterialRef.current.uniforms.uBurst.value = totalEffect;
+    shaderMaterialRef.current.uniforms.uBurst.value = unleashProgressRef.current;
   });
 
   return (

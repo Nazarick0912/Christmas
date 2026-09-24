@@ -3,38 +3,46 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { CONFIG } from '../constants';
 import { useHandControl } from '../context/HandControlContext';
+import { useWishControl } from '../context/WishControlContext';
 
 const vertexShader = `
   attribute vec3 targetPosition;
   attribute vec3 color;
   uniform float uProgress;
+  uniform float uShine;
   uniform float uTime;
   varying vec3 vColor;
+  varying float vShine;
 
   void main() {
     vColor = color;
+    vShine = uShine;
     vec3 currentPos = mix(position, targetPosition, uProgress);
     
-    // Floating breathing pulse on the star
-    float pulse = 1.0 + sin(uTime * 2.0) * 0.05;
+    // Floating breathing pulse on the star, boosted by celebratory shine
+    float pulse = 1.0 + sin(uTime * 2.0) * 0.05 + uShine * 0.35;
     float scale = mix(pulse, 1.0, uProgress);
     currentPos *= scale;
     
     vec4 mvPosition = modelViewMatrix * vec4(currentPos, 1.0);
-    gl_PointSize = 0.04 * (800.0 / -mvPosition.z);
+    gl_PointSize = clamp(0.04 * (1.0 + uShine * 0.6) * (800.0 / -mvPosition.z), 1.0, 28.0);
     gl_Position = projectionMatrix * mvPosition;
   }
 `;
 
 const fragmentShader = `
   varying vec3 vColor;
+  varying float vShine;
 
   void main() {
     vec2 coord = gl_PointCoord - vec2(0.5);
     if (length(coord) > 0.5) discard;
     float strength = 1.0 - (length(coord) * 2.0);
     strength = pow(strength, 1.5);
-    gl_FragColor = vec4(vColor, strength);
+    
+    // Radiant golden shine boost during wish arrival
+    vec3 finalColor = vColor * (1.0 + vShine * 2.5);
+    gl_FragColor = vec4(finalColor, strength);
   }
 `;
 
@@ -43,6 +51,7 @@ const TopDecoration: React.FC = () => {
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const progressRef = useRef(0);
   const { isUnleashed } = useHandControl();
+  const { treeDataRef } = useWishControl();
   
   const { homePositions, targetPositions, colors } = useMemo(() => {
     const count = 1500; 
@@ -107,7 +116,15 @@ const TopDecoration: React.FC = () => {
     const factor = isUnleashed ? 0.1 : 0.05;
     progressRef.current = THREE.MathUtils.lerp(progressRef.current, targetProgress, factor);
     
+    // Decay star shine
+    if (treeDataRef.current.starShine > 0.001) {
+      treeDataRef.current.starShine = THREE.MathUtils.lerp(treeDataRef.current.starShine, 0, 0.03);
+    } else {
+      treeDataRef.current.starShine = 0;
+    }
+
     materialRef.current.uniforms.uProgress.value = progressRef.current;
+    materialRef.current.uniforms.uShine.value = treeDataRef.current.starShine;
     materialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
     
     // Transform: 0.6 units above tree tip
@@ -130,6 +147,7 @@ const TopDecoration: React.FC = () => {
         fragmentShader={fragmentShader}
         uniforms={{
           uProgress: { value: 0 },
+          uShine: { value: 0 },
           uTime: { value: 0 }
         }}
         transparent 
