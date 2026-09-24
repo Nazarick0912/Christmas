@@ -5,13 +5,22 @@ import { CONFIG } from '../constants';
 import { useHandControl } from '../context/HandControlContext';
 
 const vertexShader = `
+  attribute vec3 targetPosition;
   attribute float size;
+  uniform float uProgress;
+  uniform float uTime;
   varying float vAlpha;
   
   void main() {
     vAlpha = 1.0;
-    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    gl_PointSize = size * (800.0 / -mvPosition.z);
+    // GPU vertex morph between home and explosion
+    vec3 currentPos = mix(position, targetPosition, uProgress);
+    
+    // Shimmer scale pulse
+    float pulse = 1.0 + sin(uTime * 3.0) * 0.02;
+    
+    vec4 mvPosition = modelViewMatrix * vec4(currentPos, 1.0);
+    gl_PointSize = size * pulse * (800.0 / -mvPosition.z);
     gl_Position = projectionMatrix * mvPosition;
   }
 `;
@@ -37,15 +46,16 @@ const fragmentShader = `
 
 const SpiralHelix: React.FC = () => {
   const meshRef = useRef<THREE.Points>(null);
+  const materialRef = useRef<THREE.ShaderMaterial>(null);
+  const progressRef = useRef(0);
   const { isUnleashed } = useHandControl();
 
-  const { positions, homePositions, targetPositions, sizes } = useMemo(() => {
+  const { homePositions, targetPositions, sizes } = useMemo(() => {
     const count = 4000;
     const height = CONFIG.dimensions.treeHeight;
     const halfHeight = height / 2;
     const baseRadius = CONFIG.dimensions.treeRadius;
     
-    const positions = new Float32Array(count * 3);
     const homePositions = new Float32Array(count * 3);
     const targetPositions = new Float32Array(count * 3);
     const sizes = new Float32Array(count);
@@ -64,7 +74,7 @@ const SpiralHelix: React.FC = () => {
         let x = Math.cos(angle) * radius;
         let z = Math.sin(angle) * radius;
 
-        // "Thick Band" effect
+        // "Thick Band" spread effect
         const spread = 0.15; 
         x += (Math.random() - 0.5) * spread;
         z += (Math.random() - 0.5) * spread;
@@ -75,73 +85,48 @@ const SpiralHelix: React.FC = () => {
         homePositions[i * 3 + 1] = y;
         homePositions[i * 3 + 2] = z;
 
-        // Initialize Position
-        positions[i * 3] = x;
-        positions[i * 3 + 1] = y;
-        positions[i * 3 + 2] = z;
-
-        // Calculate Target Position (Explosion)
-        // Expand outwards significantly (3x + random)
+        // Calculate Target Position (Explosion outwards 3x-7x)
         const expansionFactor = 3.0 + Math.random() * 4.0;
-        
         targetPositions[i * 3] = x * expansionFactor;
-        targetPositions[i * 3 + 1] = y * 0.8; // Flatten slightly vertically
+        targetPositions[i * 3 + 1] = y * 0.8;
         targetPositions[i * 3 + 2] = z * expansionFactor;
 
         sizes[i] = 0.08 + Math.random() * 0.05; 
     }
 
-    return { positions, homePositions, targetPositions, sizes };
+    return { homePositions, targetPositions, sizes };
   }, []);
 
   useFrame((state, delta) => {
-    if (!meshRef.current) return;
+    if (!meshRef.current || !materialRef.current) return;
 
-    // CPU Animation Loop
-    const currentPositions = meshRef.current.geometry.attributes.position.array as Float32Array;
-    
-    // Choose Lerp Speed based on state
-    // Unleashed = Fast explosion (0.1)
-    // Leashed = Slower return (0.05)
+    // Smoothly lerp explosion factor on the GPU
+    const targetProgress = isUnleashed ? 1.0 : 0.0;
     const factor = isUnleashed ? 0.1 : 0.05;
+    progressRef.current = THREE.MathUtils.lerp(progressRef.current, targetProgress, factor);
 
-    for (let i = 0; i < 4000; i++) {
-        const ix = i * 3;
-        const iy = i * 3 + 1;
-        const iz = i * 3 + 2;
+    materialRef.current.uniforms.uProgress.value = progressRef.current;
+    materialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
 
-        const tx = isUnleashed ? targetPositions[ix] : homePositions[ix];
-        const ty = isUnleashed ? targetPositions[iy] : homePositions[iy];
-        const tz = isUnleashed ? targetPositions[iz] : homePositions[iz];
-
-        currentPositions[ix] += (tx - currentPositions[ix]) * factor;
-        currentPositions[iy] += (ty - currentPositions[iy]) * factor;
-        currentPositions[iz] += (tz - currentPositions[iz]) * factor;
-    }
-    
-    meshRef.current.geometry.attributes.position.needsUpdate = true;
-
-    // Rotate slowly around Y (independent of explosion)
-    // Slower rotation when exploded to emphasize static suspension
+    // Rotate around Y
     const rotSpeed = isUnleashed ? 0.05 : 0.2;
     meshRef.current.rotation.y -= delta * rotSpeed;
-
-    // Shimmer / Pulse Effect
-    const time = state.clock.elapsedTime;
-    const scale = 1.0 + Math.sin(time * 3.0) * 0.02;
-    meshRef.current.scale.setScalar(scale);
   });
 
   return (
     <points ref={meshRef}>
         <bufferGeometry>
-            <bufferAttribute attach="attributes-position" count={positions.length / 3} array={positions} itemSize={3} />
+            <bufferAttribute attach="attributes-position" count={homePositions.length / 3} array={homePositions} itemSize={3} />
+            <bufferAttribute attach="attributes-targetPosition" count={targetPositions.length / 3} array={targetPositions} itemSize={3} />
             <bufferAttribute attach="attributes-size" count={sizes.length} array={sizes} itemSize={1} />
         </bufferGeometry>
         <shaderMaterial 
+            ref={materialRef}
             vertexShader={vertexShader}
             fragmentShader={fragmentShader}
             uniforms={{
+                uProgress: { value: 0 },
+                uTime: { value: 0 },
                 color: { value: new THREE.Color('#E0FFFF') }, 
                 opacity: { value: 0.9 }
             }}

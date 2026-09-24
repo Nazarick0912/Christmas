@@ -4,13 +4,22 @@ import { useHandControl } from '../context/HandControlContext';
 
 const HandTracker: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const { setHandState, cursorPositionRef, isHandDetectedRef } = useHandControl();
+  const { setHandState, cursorPositionRef, isHandDetectedRef, cameraEnabled, setCameraEnabled } = useHandControl();
   const [loaded, setLoaded] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const indicatorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!cameraEnabled) {
+      isHandDetectedRef.current = false;
+      setHandState(false);
+      if (indicatorRef.current) indicatorRef.current.style.opacity = '0';
+      return;
+    }
+
     let handLandmarker: HandLandmarker | null = null;
     let animationFrameId: number;
+    let streamRef: MediaStream | null = null;
 
     const setupMediaPipe = async () => {
       try {
@@ -30,7 +39,8 @@ const HandTracker: React.FC = () => {
         setLoaded(true);
         startWebcam();
       } catch (error) {
-        // Silent failure
+        setCameraError("Camera unavailable. Using keyboard & mouse fallback.");
+        setLoaded(true);
       }
     };
 
@@ -40,11 +50,16 @@ const HandTracker: React.FC = () => {
           const stream = await navigator.mediaDevices.getUserMedia({ 
               video: { width: 640, height: 480, facingMode: "user" } 
           });
-          videoRef.current.srcObject = stream;
-          videoRef.current.addEventListener('loadeddata', predictWebcam);
-        } catch (e) {
-          // Silent failure
+          streamRef = stream;
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            videoRef.current.addEventListener('loadeddata', predictWebcam);
+          }
+        } catch (e: any) {
+          setCameraError("Camera access denied. Keyboard & mouse fallback active.");
         }
+      } else {
+        setCameraError("Camera not supported. Keyboard & mouse fallback active.");
       }
     };
 
@@ -73,14 +88,10 @@ const HandTracker: React.FC = () => {
 
         const isUnleashed = distance > 0.15;
         
-        // Update Refs directly (no re-render)
         isHandDetectedRef.current = true;
         cursorPositionRef.current = { x, y };
-
-        // Update State (triggers re-render only if changed)
         setHandState(isUnleashed);
         
-        // Update DOM indicator directly
         if (indicatorRef.current) {
             indicatorRef.current.style.opacity = '1';
             indicatorRef.current.style.left = `${x * 100}%`;
@@ -103,12 +114,15 @@ const HandTracker: React.FC = () => {
     return () => {
       cancelAnimationFrame(animationFrameId);
       if (handLandmarker) handLandmarker.close();
+      if (streamRef) {
+         streamRef.getTracks().forEach(track => track.stop());
+      }
       if (videoRef.current && videoRef.current.srcObject) {
          const stream = videoRef.current.srcObject as MediaStream;
          stream.getTracks().forEach(track => track.stop());
       }
     };
-  }, []);
+  }, [cameraEnabled]);
 
   return (
     <>
@@ -119,6 +133,7 @@ const HandTracker: React.FC = () => {
         muted
         style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }} 
       />
+      {/* Hand cursor indicator */}
       <div 
         ref={indicatorRef}
         style={{
@@ -127,21 +142,47 @@ const HandTracker: React.FC = () => {
           top: '50%',
           width: '12px',
           height: '12px',
-          backgroundColor: '#00ff00',
+          backgroundColor: '#FF69B4',
           borderRadius: '50%',
           transform: 'translate(-50%, -50%)',
-          boxShadow: '0 0 10px #00ff00',
+          boxShadow: '0 0 12px #FF69B4',
           zIndex: 50,
           pointerEvents: 'none',
           opacity: 0,
           transition: 'opacity 0.2s'
         }}
       />
-      {!loaded && (
-        <div className="absolute top-4 right-4 text-green-500 text-xs">
-          Loading Hand Tracking...
-        </div>
-      )}
+
+      {/* Control Mode Badge & Toggle */}
+      <div className="absolute top-4 right-4 z-30 pointer-events-auto flex items-center gap-2 font-mono text-xs">
+        {cameraEnabled && !cameraError ? (
+          <div className="flex items-center gap-2 bg-black/60 backdrop-blur-md border border-pink-500/30 rounded-full px-3 py-1.5 text-pink-200 shadow-[0_0_10px_rgba(255,105,180,0.2)]">
+            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+            <span>{loaded ? "📷 Hand Tracking Active" : "Initializing Camera..."}</span>
+            <button 
+              onClick={() => setCameraEnabled(false)}
+              className="text-pink-400 hover:text-pink-100 underline ml-1 cursor-pointer"
+              title="Switch to Keyboard Mode"
+            >
+              Switch to Keys
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 bg-black/70 backdrop-blur-md border border-amber-500/40 rounded-full px-3 py-1.5 text-amber-200 shadow-[0_0_10px_rgba(255,215,0,0.2)]">
+            <span>⌨️ Keyboard Mode (Spacebar to Expand)</span>
+            <button 
+              onClick={() => {
+                setCameraError(null);
+                setCameraEnabled(true);
+              }}
+              className="text-amber-300 hover:text-white underline ml-1 cursor-pointer"
+              title="Try Enabling Webcam"
+            >
+              Use Camera
+            </button>
+          </div>
+        )}
+      </div>
     </>
   );
 };
