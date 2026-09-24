@@ -1,5 +1,6 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
+import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { useWishControl } from '../context/WishControlContext';
 import { CONFIG } from '../constants';
@@ -10,7 +11,7 @@ const TRAIL_LENGTH = 120;
 const CLUSTER_COUNT = 50; 
 
 const WishSystem: React.FC = () => {
-  const { wishesRef, treeDataRef, registerLanded } = useWishControl();
+  const { wishesRef, activeWishes, treeDataRef, registerLanded, removeActiveWish } = useWishControl();
   
   const poolRefs = useRef<(THREE.Group | null)[]>([]);
   const burstRefs = useRef<(THREE.Points | null)[]>([]);
@@ -233,9 +234,10 @@ const WishSystem: React.FC = () => {
         }
 
         // --- PERSISTENCE LOGIC ---
-        // If not yet handled, register it as permanent star
+        // If not yet handled, register it as permanent star on the tree branch
         if (!wish.handled) {
-          registerLanded(wish.endPos.clone());
+          const targetPos = wish.localPos ? wish.localPos.clone() : wish.endPos.clone();
+          registerLanded(targetPos, wish.text, wish.id, wish.color);
           wish.handled = true;
         }
 
@@ -273,6 +275,9 @@ const WishSystem: React.FC = () => {
              (burstPoints.material as THREE.PointsMaterial).opacity = Math.max(0, opacity);
         } else {
              burstPoints.visible = false;
+             // Hide flying group once landed burst finishes
+             group.visible = false;
+             removeActiveWish(wish.id);
         }
       }
 
@@ -308,8 +313,10 @@ const WishSystem: React.FC = () => {
 
   return (
     <>
-      {Array.from({ length: MAX_WISHES }).map((_, i) => (
-        <React.Fragment key={i}>
+      {Array.from({ length: MAX_WISHES }).map((_, i) => {
+        const activeWish = activeWishes[i];
+        return (
+          <React.Fragment key={i}>
             <group ref={(el) => { poolRefs.current[i] = el; }} visible={false}>
               <points 
                 geometry={clusterGeometry}
@@ -329,6 +336,24 @@ const WishSystem: React.FC = () => {
                     depthWrite={false}
                  />
               </points>
+
+              {/* Floating 3D text badge following the active wish in flight */}
+              {activeWish && (
+                <Html
+                  position={[0, 0.45, 0]}
+                  center
+                  distanceFactor={13}
+                  style={{
+                    pointerEvents: 'none',
+                    userSelect: 'none'
+                  }}
+                >
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-pink-400/60 shadow-[0_0_20px_rgba(255,105,180,0.8)] text-pink-50 text-xs font-mono whitespace-nowrap animate-pulse">
+                    <span className="text-amber-300">✨</span>
+                    <span className="font-semibold tracking-wide">{activeWish.text}</span>
+                  </div>
+                </Html>
+              )}
             </group>
             <points
                 ref={(el) => { trailRefs.current[i] = el as unknown as THREE.Points; }}
@@ -336,8 +361,9 @@ const WishSystem: React.FC = () => {
                 material={trailMaterial}
                 frustumCulled={false} 
             />
-        </React.Fragment>
-      ))}
+          </React.Fragment>
+        );
+      })}
     </>
   );
 };

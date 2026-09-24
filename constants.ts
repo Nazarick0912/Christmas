@@ -9,7 +9,7 @@ export const CONFIG = {
     snow: '#ffffff',
     wishCore: '#FF69B4',   // Warm Pink Core
     wishGlow: '#FF7F50',   // Coral Highlights
-    wishLanded: '#FF0000', // Bright Red Star Ornament
+    wishLanded: '#FFD700', // Radiant Gold Star Ornament
   },
   counts: {
     treeParticles: 30000,

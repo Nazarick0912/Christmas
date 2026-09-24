@@ -5,7 +5,7 @@ import { WishControlProvider, useWishControl } from './context/WishControlContex
 import HandTracker from './components/HandTracker';
 
 const WishInput: React.FC = () => {
-  const { addWish } = useWishControl();
+  const { addWish, permanentWishes } = useWishControl();
   const [text, setText] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -17,27 +17,37 @@ const WishInput: React.FC = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="pointer-events-auto flex items-end justify-center w-full px-4">
-      <div className="relative group flex items-center max-w-lg w-full">
-        <input 
-          type="text" 
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Write your wish here..."
-          className="bg-black/40 backdrop-blur-xl text-pink-50 px-6 py-4 rounded-l-lg outline-none w-full font-mono text-sm placeholder-pink-400/30 transition-all duration-300 focus:bg-black/60 shadow-[0_0_20px_rgba(0,0,0,0.5)] border border-white/5 border-r-0"
-          style={{ fontFamily: "'Space Mono', monospace" }}
-        />
-        <button 
-          type="submit"
-          className="px-8 py-4 bg-pink-500/10 backdrop-blur-xl text-pink-200 rounded-r-lg hover:bg-pink-500/30 transition-all duration-300 border border-white/5 border-l-0 hover:shadow-[0_0_15px_rgba(255,105,180,0.3)]"
-        >
-          <span className="font-mono text-xs uppercase tracking-widest font-bold">Send</span>
-        </button>
-        
-        {/* Animated Underline */}
-        <div className="absolute bottom-0 left-0 h-[1px] w-0 bg-gradient-to-r from-pink-500 to-transparent transition-all duration-700 group-hover:w-full"></div>
-      </div>
-    </form>
+    <div className="flex flex-col items-center w-full px-4 gap-2">
+      <form onSubmit={handleSubmit} className="pointer-events-auto flex items-end justify-center w-full max-w-lg">
+        <div className="relative group flex items-center w-full">
+          <input 
+            type="text" 
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Write your holiday wish..."
+            maxLength={60}
+            className="bg-black/50 backdrop-blur-xl text-pink-50 px-6 py-4 rounded-l-lg outline-none w-full font-mono text-sm placeholder-pink-400/40 transition-all duration-300 focus:bg-black/70 shadow-[0_0_20px_rgba(0,0,0,0.6)] border border-pink-500/20 border-r-0 focus:border-pink-500/50"
+            style={{ fontFamily: "'Space Mono', monospace" }}
+          />
+          <button 
+            type="submit"
+            className="px-8 py-4 bg-pink-500/20 backdrop-blur-xl text-pink-100 rounded-r-lg hover:bg-pink-500/40 transition-all duration-300 border border-pink-500/20 border-l-0 hover:shadow-[0_0_20px_rgba(255,105,180,0.5)] active:scale-95 flex items-center gap-1.5"
+          >
+            <span className="font-mono text-xs uppercase tracking-widest font-bold">Send</span>
+            <span>✨</span>
+          </button>
+          
+          {/* Animated Underline */}
+          <div className="absolute bottom-0 left-0 h-[1px] w-0 bg-gradient-to-r from-pink-400 to-amber-300 transition-all duration-700 group-hover:w-full"></div>
+        </div>
+      </form>
+      {permanentWishes.length > 0 && (
+        <div className="flex items-center gap-2 text-xs font-mono text-pink-200/80 tracking-wider">
+          <span className="text-amber-300">★</span>
+          <span>{permanentWishes.length} {permanentWishes.length === 1 ? 'wish' : 'wishes'} glowing on the branches</span>
+        </div>
+      )}
+    </div>
   );
 };
 

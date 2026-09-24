@@ -13,12 +13,13 @@ import SpiralHelix from './SpiralHelix';
 import FloatingGifts from './FloatingGifts';
 import { CONFIG } from '../constants';
 import { HandControlContext, useHandControl } from '../context/HandControlContext';
-import { WishControlContext } from '../context/WishControlContext';
+import { WishControlContext, useWishControl } from '../context/WishControlContext';
 
 const ScalableTreeGroup: React.FC = () => {
   const groupRef = useRef<THREE.Group>(null);
   
   const { isUnleashed, isHandDetectedRef, cursorPositionRef } = useHandControl();
+  const { treeRotationRef } = useWishControl();
 
   useFrame((state) => {
     if (groupRef.current) {
@@ -52,6 +53,9 @@ const ScalableTreeGroup: React.FC = () => {
         // Auto rotate when idle
         groupRef.current.rotation.y += 0.005;
       }
+
+      // Synchronize tree rotation for newly spawned wish landing trajectories
+      treeRotationRef.current = groupRef.current.rotation.y;
     }
   });
 
@@ -59,6 +63,7 @@ const ScalableTreeGroup: React.FC = () => {
     <group ref={groupRef} position={[0, -CONFIG.dimensions.treeHeight / 2, 0]}>
       <PinkTreeParticles />
       <BaseRings />
+      <LandedWishes />
     </group>
   );
 };
@@ -68,8 +73,8 @@ const GL_CONFIG: any = {
   alpha: false,
   stencil: false,
   depth: true,
-  toneMapping: THREE.ReinhardToneMapping,
-  toneMappingExposure: 1.5
+  toneMapping: THREE.ACESFilmicToneMapping,
+  toneMappingExposure: 1.3
 };
 
 const PinkParticleTreeScene: React.FC = () => {
@@ -111,7 +116,6 @@ const PinkParticleTreeScene: React.FC = () => {
           <FloatingGifts />
           <SnowParticles />
           <WishSystem />
-          <LandedWishes />
           <SceneEffects />
         </Suspense>
       </ContextBridge>
