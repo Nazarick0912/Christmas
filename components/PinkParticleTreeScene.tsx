@@ -93,12 +93,12 @@ const PinkParticleTreeScene: React.FC = () => {
         <OrbitControls 
           enablePan={false}
           enableZoom={true}
-          zoomSpeed={1.5}
+          zoomSpeed={0.5}
           enableDamping={true}
-          dampingFactor={0.05}
+          dampingFactor={0.08}
           maxPolarAngle={Math.PI / 2 - 0.1}
-          minDistance={5}
-          maxDistance={50}
+          minDistance={9}
+          maxDistance={28}
           autoRotate={true}
           autoRotateSpeed={0.3}
         />

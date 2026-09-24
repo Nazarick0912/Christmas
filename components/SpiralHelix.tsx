@@ -20,7 +20,7 @@ const vertexShader = `
     float pulse = 1.0 + sin(uTime * 3.0) * 0.02;
     
     vec4 mvPosition = modelViewMatrix * vec4(currentPos, 1.0);
-    gl_PointSize = size * pulse * (800.0 / -mvPosition.z);
+    gl_PointSize = clamp(size * pulse * (800.0 / -mvPosition.z), 1.0, 28.0);
     gl_Position = projectionMatrix * mvPosition;
   }
 `;

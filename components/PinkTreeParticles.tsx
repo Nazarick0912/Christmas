@@ -32,7 +32,7 @@ const vertexShader = `
     vec4 mvPosition = modelViewMatrix * vec4(currentPos, 1.0);
     vDepth = -mvPosition.z;
 
-    gl_PointSize = size * (800.0 / vDepth); 
+    gl_PointSize = clamp(size * (800.0 / vDepth), 1.0, 32.0); 
     gl_Position = projectionMatrix * mvPosition;
   }
 `;
